@@ -1,2 +1,2 @@
-idf_component_register(SRCS ./app_main.cpp ./HeatPump.cpp
+idf_component_register(SRCS ./app_main.c ./HeatPump.cpp
                        INCLUDE_DIRS ".")

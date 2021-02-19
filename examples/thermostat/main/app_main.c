@@ -75,7 +75,7 @@ static void set_char_value(const char* char_uuid, hap_val_t *val)
     }
 }
 
-static char* get_heatpump_mode(int value) {
+static const char* get_heatpump_mode(int value) {
   switch (value) {
     case 0:
       return "OFF";
@@ -141,7 +141,7 @@ static void reset_to_factory_handler(void* arg)
  * Same button will be used for resetting Wi-Fi network as well as for reset to factory based on
  * the time for which the button is pressed.
  */
-static void reset_key_init(uint32_t key_gpio_pin)
+static void reset_key_init(gpio_num_t key_gpio_pin)
 {
     button_handle_t handle = iot_button_create(key_gpio_pin, BUTTON_ACTIVE_LOW);
     iot_button_add_on_release_cb(handle, RESET_NETWORK_BUTTON_TIMEOUT, reset_network_handler, NULL);
@@ -172,12 +172,10 @@ static void thermostat_hap_event_handler(void* arg, esp_event_base_t event_base,
             ESP_LOGI(TAG, "Pairing Aborted");
             break;
         case HAP_EVENT_CTRL_PAIRED :
-            ESP_LOGI(TAG, "Controller %s Paired. Controller count: %d",
-                        (char *)data, hap_get_paired_controller_count());
+            ESP_LOGI(TAG, "Controller %s Paired. Controller count: %d", (char *)data, hap_get_paired_controller_count());
             break;
         case HAP_EVENT_CTRL_UNPAIRED :
-            ESP_LOGI(TAG, "Controller %s Removed. Controller count: %d",
-                        (char *)data, hap_get_paired_controller_count());
+            ESP_LOGI(TAG, "Controller %s Removed. Controller count: %d", (char *)data, hap_get_paired_controller_count());
             break;
         case HAP_EVENT_CTRL_CONNECTED :
             ESP_LOGI(TAG, "Controller %s Connected", (char *)data);
@@ -210,23 +208,23 @@ static int thermostat_read(hap_char_t *hc, hap_status_t *status_code, void *serv
     
     if (!strcmp(hap_char_get_type_uuid(hc), HAP_CHAR_UUID_CURRENT_HEATING_COOLING_STATE)) {
         // 0 "Off", 1 "Heat", 2 "Cool", 3 "Auto"
-        char* mode = heatpump.getModeSetting();
+        const char* mode = heatpump.getModeSetting();
         bool operating = heatpump.getOperating();
         if (!mode) {
             *status_code = HAP_STATUS_RES_BUSY;
-            return;
+            return HAP_STATUS_RES_BUSY;
         }
         hap_val_t current_state_val;
         current_state_val.i = get_homekit_current_heating_cooling_state(operating, mode);
         hap_char_update_val(hc, &current_state_val);
         *status_code = HAP_STATUS_SUCCESS;
 
-        ESP_LOGI(TAG, "Received Read. Thermostat Current State: %i",  current_state_val->i);
+        ESP_LOGI(TAG, "Received Read. Thermostat Current State: %d",  current_state_val.i);
     } else if (!strcmp(hap_char_get_type_uuid(hc), HAP_CHAR_UUID_CURRENT_TEMPERATURE)) {
         // min 0, max 100, step 0.1, unit celsius
         hap_val_t current_temp_val;
         current_temp_val.f = heatpump.getRoomTemperature();
-        ESP_LOGI(TAG, "Received Read. Thermostat Current Temp: %f", current_temp_val->f);
+        ESP_LOGI(TAG, "Received Read. Thermostat Current Temp: %d", current_temp_val.f);
 
         hap_char_update_val(hc, &current_temp_val);
         *status_code = HAP_STATUS_SUCCESS;
@@ -267,7 +265,7 @@ static int thermostat_write(hap_write_data_t write_data[], int count,
         if (!strcmp(hap_char_get_type_uuid(write->hc), HAP_CHAR_UUID_TARGET_HEATING_COOLING_STATE)) {
             //  0 "Off", 1 "Heat", 2 "Cool", 3 "Auto"
             bool power = (write->val.i == 1);
-            char* mode = get_heatpump_mode(write->val.i);
+            const char* mode = get_heatpump_mode(write->val.i);
             ESP_LOGI(TAG, "Received Write. Thermostat Target State: %s", mode);
 
             heatpump.setPowerSetting(power);
@@ -277,7 +275,7 @@ static int thermostat_write(hap_write_data_t write_data[], int count,
             *(write->status) = HAP_STATUS_SUCCESS;
         } else if (!strcmp(hap_char_get_type_uuid(write->hc), HAP_CHAR_UUID_TARGET_TEMPERATURE)) {
             // min 10, max 38, step 0.1, unit celsius
-            ESP_LOGI(TAG, "Received Write. Thermostat Target Temp: %s", write->val.f);
+            ESP_LOGI(TAG, "Received Write. Thermostat Target Temp: %d", write->val.f);
 
             heatpump.setTemperature(write->val.f);
 
@@ -309,15 +307,15 @@ static void heatpumpSettingsChanged() {
   bool power = heatpump.getPowerSettingBool();
   if (mode) {
     hap_val_t target_state_val;
-    current_state_val.i = get_homekit_target_heating_cooling_state(power, mode);;
-    set_char_value(HAP_CHAR_UUID_TARGET_HEATING_COOLING_STATE, target_state_val);
+    target_state_val.i = get_homekit_target_heating_cooling_state(power, mode);;
+    set_char_value(HAP_CHAR_UUID_TARGET_HEATING_COOLING_STATE, &target_state_val);
   }
 
   float temperature = heatpump.getTemperature();
   if (temperature) {
         hap_val_t temperature_val;
         temperature_val.f = temperature;
-        set_char_value(HAP_CHAR_UUID_TARGET_TEMPERATURE, temperature_val);
+        set_char_value(HAP_CHAR_UUID_TARGET_TEMPERATURE, &temperature_val);
     }
 }
 
@@ -326,15 +324,15 @@ static void heatpumpStatusChanged(heatpumpStatus status) {
     if (temperature) {
         hap_val_t temperature_val;
         temperature_val.f = temperature;
-        set_char_value(HAP_CHAR_UUID_CURRENT_TEMPERATURE, temperature_val);
+        set_char_value(HAP_CHAR_UUID_CURRENT_TEMPERATURE, &temperature_val);
     }
 
-    char* mode = heatpump.getModeSetting();
+    const char* mode = heatpump.getModeSetting();
     bool operating = heatpump.getOperating();
     if (mode) {
         hap_val_t current_state_val;
         current_state_val.i = get_homekit_current_heating_cooling_state(operating, mode);
-        set_char_value(HAP_CHAR_UUID_CURRENT_HEATING_COOLING_STATE, current_state_val);
+        set_char_value(HAP_CHAR_UUID_CURRENT_HEATING_COOLING_STATE, &current_state_val);
     }
 }
 
@@ -381,8 +379,8 @@ static void thermostat_thread_entry(void *p)
     service = hap_serv_thermostat_create(
         0 /* curr_heating_cooling_state: 0 "Off", 1 "Heat", 2 "Cool" */, 
         0 /* targ_heating_cooling_state: 0 "Off", 1 "Heat", 2 "Cool", 3 "Auto" */, 
-        20.5556 /* curr_temp: min 0, max 100, step 0.1, unit celsius */, 
-        20.5556 /* targ_temp: min 10, max 38, step 0.1, unit celsius */, 
+        21 /* curr_temp: min 0, max 100, step 0.1, unit celsius */, 
+        21 /* targ_temp: min 10, max 38, step 0.1, unit celsius */, 
         1 /* temp_disp_units: 0 "Celsius", 1 "Fahrenheit" */);
 
     hap_serv_add_char(service, hap_char_name_create("Mitsubishi Heat Pump"));
@@ -410,13 +408,11 @@ static void thermostat_thread_entry(void *p)
     /* Add the Accessory to the HomeKit Database */
     hap_add_accessory(accessory);
 
-    /* Register a common button for reset Wi-Fi network and reset to factory.
-     */
+    /* Register a common button for reset Wi-Fi network and reset to factory. */
     reset_key_init(RESET_GPIO);
 
     /* Query the controller count (just for information) */
-    ESP_LOGI(TAG, "Accessory is paired with %d controllers",
-                hap_get_paired_controller_count());
+    ESP_LOGI(TAG, "Accessory is paired with %d controllers", hap_get_paired_controller_count());
 
     /* Setup the heatpump connection */
     heatpump.setSettingsChangedCallback(heatpumpSettingsChanged);
@@ -465,8 +461,8 @@ static void thermostat_thread_entry(void *p)
     vTaskDelete(NULL);
 }
 
-extern "C" void app_main()
+// extern "C" void app_main()
+void app_main()
 {
     xTaskCreate(thermostat_thread_entry, THERMOSTAT_TASK_NAME, THERMOSTAT_TASK_STACKSIZE, NULL, THERMOSTAT_TASK_PRIORITY, NULL);
 }
-
