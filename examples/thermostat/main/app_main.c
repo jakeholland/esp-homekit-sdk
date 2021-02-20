@@ -461,7 +461,6 @@ static void thermostat_thread_entry(void *p)
     vTaskDelete(NULL);
 }
 
-// extern "C" void app_main()
 void app_main()
 {
     xTaskCreate(thermostat_thread_entry, THERMOSTAT_TASK_NAME, THERMOSTAT_TASK_STACKSIZE, NULL, THERMOSTAT_TASK_PRIORITY, NULL);

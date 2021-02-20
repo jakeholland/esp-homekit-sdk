@@ -4,6 +4,6 @@
 [submodule "components/homekit/json_generator/upstream"]
 	path = components/homekit/json_generator/upstream
 	url = https://github.com/espressif/json_generator.git
-[submodule "components/homekit/HeatPump/upstream"]
-	path = components/homekit/HeatPump/upstream
+[submodule "components/HeatPump"]
+	path = components/HeatPump
 	url = https://github.com/SwiCago/HeatPump.git

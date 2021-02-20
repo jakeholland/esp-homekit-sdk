@@ -8,7 +8,7 @@ COMMON_COMPONENT_PATH ?= $(abspath $(shell pwd)/../common)
 
 PROJECT_NAME := thermostat
 EXTRA_COMPONENT_DIRS += $(HOMEKIT_PATH)/components/
-EXTRA_COMPONENT_DIRS += $(HOMEKIT_PATH)/components/homekit
+EXTRA_COMPONENT_DIRS += $(HOMEKIT_PATH)/components/homekit/
 EXTRA_COMPONENT_DIRS += $(COMMON_COMPONENT_PATH)
 
 include $(IDF_PATH)/make/project.mk
